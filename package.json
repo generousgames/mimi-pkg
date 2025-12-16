@@ -1,0 +1,52 @@
+{
+  "name": "mimi-pkg",
+  "version": "0.0.1",
+  "description": "Package manager CLI for the Generous Games Mimi engine",
+  "main": "src/index.js",
+  "bin": {
+    "mimi-cli": "dist/main.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json && npm run copy-assets",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist || rm -rf dist",
+    "copy-assets": "shx cp -r src/assets dist/assets",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/generousgames/mimi-pkg.git"
+  },
+  "keywords": [
+    "mimi"
+  ],
+  "author": "Generous Games Inc.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/generousgames/mimi-pkg/issues"
+  },
+  "homepage": "https://github.com/generousgames/mimi-pkg#readme",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.922.0",
+    "@aws-sdk/lib-storage": "^3.922.0",
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
+    "axios": "^1.12.2",
+    "colorette": "^2.0.20",
+    "mime": "^4.1.0",
+    "mustache": "^4.2.0",
+    "shasum": "^1.0.2",
+    "zx": "^8.8.4"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/archiver": "^7.0.0",
+    "@types/mustache": "^4.2.6",
+    "@types/node": "^22.7.4",
+    "@types/shasum": "^1.0.2",
+    "shx": "^0.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3"
+  }
+}
