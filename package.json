@@ -1,5 +1,5 @@
 {
-  "name": "mimi-pkg",
+  "name": "@generousgames/mimi-pkg",
   "version": "0.0.1",
   "description": "Package manager CLI for the Generous Games Mimi engine",
   "main": "src/index.js",
