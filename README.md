@@ -1,4 +1,4 @@
-**mimi-pkg** is a package manager CLI for the [Generous Games Mimi engine](https://github.com/generousgames/mimi). It helps you create, manage, and publish (prebuilt) packages for Mimi-powered games and projects.
+**mimi-pkg** is a package manager CLI for the [Generous Games Mimi engine](https://github.com/generousgames/mimi). It helps you create, build, and publish (prebuilt) packages of 3rd party libraries for Mimi-powered games and projects.
 
 ## Features
 
