@@ -34,6 +34,7 @@ if [ "${1:-}" = "setup" ]; then
 
     echo "3. Installing package dependencies..."
     npm install --silent
+    exit 0
 fi
 
 ################################################################################
@@ -42,18 +43,21 @@ fi
 if [ "${1:-}" = "build" ]; then
     echo "Building the package..."
     npm run build
+    exit 0
 fi
 
 # Clean the package
 if [ "${1:-}" = "clean" ]; then
     echo "Cleaning the package..."
     npm run clean
+    exit 0
 fi
 
 # Publish the package to the npm registry
 if [ "${1:-}" = "publish" ]; then
     echo "Publishing the package..."
     npm publish --access public
+    exit 0
 fi
 
 ################################################################################
@@ -62,12 +66,14 @@ fi
 if [ "${1:-}" = "link" ]; then
     echo "Linking the package..."
     npm link
+    exit 0
 fi
 
 # Unlink the package, making it no longer available globally
 if [ "${1:-}" = "unlink" ]; then
     echo "Unlinking the package..."
     npm unlink -g @generousgames/mimi-pkg
+    exit 0
 fi
 
 ################################################################################
@@ -76,5 +82,18 @@ fi
 if [ "${1:-}" = "dev" ]; then
     echo "Running in development mode..."
     npm run dev -- "${@:2}"
+    exit 0
 fi
 
+################################################################################
+
+echo "Usage: mimi-pkg <command> <args...>"
+echo "Commands:"
+echo "> mimi-pkg setup              - Cleans the package and installs dependencies."
+echo "> mimi-pkg build              - Builds the package."
+echo "> mimi-pkg clean              - Cleans the package."
+echo "> mimi-pkg publish            - Publishes the package to the npm registry."
+echo "> mimi-pkg link               - Links the package to the global scope."
+echo "> mimi-pkg unlink             - Unlinks the package from the global scope."
+echo "> mimi-pkg dev <args...>      - Runs the package in development mode with arguments."
+exit 1
