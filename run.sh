@@ -87,13 +87,13 @@ fi
 
 ################################################################################
 
-echo "Usage: mimi-pkg <command> <args...>"
+echo "Usage: run.sh <command> <args...>"
 echo "Commands:"
-echo "> mimi-pkg setup              - Cleans the package and installs dependencies."
-echo "> mimi-pkg build              - Builds the package."
-echo "> mimi-pkg clean              - Cleans the package."
-echo "> mimi-pkg publish            - Publishes the package to the npm registry."
-echo "> mimi-pkg link               - Links the package to the global scope."
-echo "> mimi-pkg unlink             - Unlinks the package from the global scope."
-echo "> mimi-pkg dev <args...>      - Runs the package in development mode with arguments."
+echo "> run.sh setup              - Cleans the package and installs dependencies."
+echo "> run.sh build              - Builds the package."
+echo "> run.sh clean              - Cleans the package."
+echo "> run.sh publish            - Publishes the package to the npm registry."
+echo "> run.sh link               - Links the package to the global scope."
+echo "> run.sh unlink             - Unlinks the package from the global scope."
+echo "> run.sh dev <args...>      - Runs the package in development mode with arguments."
 exit 1

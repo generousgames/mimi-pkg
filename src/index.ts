@@ -56,7 +56,7 @@ function clean() {
  */
 function build(argv: string[]) {
     if (argv.length !== 1) {
-        log.err("Usage: mimi-cli pkg build <config_name>");
+        log.err("Usage: mimi-pkg build <config_name>");
         process.exit(1);
     }
     const configName = argv[0];
@@ -77,7 +77,7 @@ function build(argv: string[]) {
  */
 function bundle(argv: string[]) {
     if (argv.length !== 1) {
-        log.err("Usage: mimi-cli pkg bundle <config_name>");
+        log.err("Usage: mimi-pkg bundle <config_name>");
         process.exit(1);
     }
     const configName = argv[0];
@@ -98,10 +98,11 @@ function bundle(argv: string[]) {
  */
 function deploy(argv: string[]) {
     if (argv.length !== 1) {
-        log.err("Usage: mimi-cli pkg deploy <config_name>");
+        log.err("Usage: mimi-pkg deploy <config_name>");
         process.exit(1);
     }
     const configName = argv[0];
+
     const rootDir = findRepoRoot(process.cwd());
     const config = load_build_config(rootDir, configName);
     if (!config) {
