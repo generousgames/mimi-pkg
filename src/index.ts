@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+"use strict";
+
 import path from "path";
 import { build_dependency } from "./apis/build";
 import { bundle_dependency } from "./apis/bundle";

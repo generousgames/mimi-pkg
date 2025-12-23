@@ -4,7 +4,7 @@
   "description": "Package manager CLI for the Generous Games Mimi engine",
   "main": "src/index.js",
   "bin": {
-    "mimi-cli": "dist/main.js"
+    "mimi-pkg": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
