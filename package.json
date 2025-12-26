@@ -1,6 +1,6 @@
 {
   "name": "@generousgames/mimi-pkg",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Package manager Mimi engine",
   "main": "src/index.js",
   "bin": {
