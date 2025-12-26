@@ -13,24 +13,6 @@ import { findRepoRoot } from "./utils/repo";
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
- * Sets up prebuild-utils.
- * @param argv - The command line arguments.
- */
-function setup(argv: string[]) {
-    const rootDir = findRepoRoot(process.cwd());
-
-    log.info(`Setting prebuild-utils...`);
-    log.info(`> Root: ${rootDir}`);
-
-    // TODO
-    // + Check if nodejs is installed with the right version.
-    // + Check if CMake is installed.
-    // + Check if Emscripten is installed.
-
-    // deps_sync(rootDir, "macos-arm64-clang17");
-}
-
-/**
  * Cleans temporary build directories.
  */
 function clean() {
@@ -102,7 +84,7 @@ function deploy(argv: string[]) {
         process.exit(1);
     }
     const configName = argv[0];
-
+    
     const rootDir = findRepoRoot(process.cwd());
     const config = load_build_config(rootDir, configName);
     if (!config) {
@@ -120,9 +102,7 @@ function deploy(argv: string[]) {
  */
 export function execute(argv: string[]) {
     const command = argv[0];
-    if (command === "setup") {
-        setup(argv.slice(1));
-    } else if (command === "build") {
+    if (command === "build") {
         build(argv.slice(1));
     } else if (command === "bundle") {
         bundle(argv.slice(1));
@@ -133,7 +113,6 @@ export function execute(argv: string[]) {
     } else {
         log.info(`Usage: mimi-pkg <command> <args...>`);
         log.info(`Commands:`);
-        log.info(`> mimi-pkg setup`);
         log.info(`> mimi-pkg build <config_name>`);
         log.info(`> mimi-pkg bundle <config_name>`);
         log.info(`> mimi-pkg deploy <config_name>`);

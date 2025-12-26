@@ -121,7 +121,7 @@ export async function bundle_dependency(config: BuildConfig) {
         fs.cpSync(staticLibsDir, path.join(contentsDir, "libs"), { recursive: true });
 
         // Create CMake config.
-        const templatesDir = path.join(rootDir, "dependencies", "prebuild-utils", "templates");
+        const templatesDir = path.join(rootDir, "node_modules", "@generousgames", "mimi-pkg", "dist", "templates");
         const cmakeDir = path.join(contentsDir, "cmake");
         const cmakeConfigPath = path.join(cmakeDir, `${config.name}Config.cmake`);
         ensureDir(cmakeDir);

@@ -1,17 +1,17 @@
 {
   "name": "@generousgames/mimi-pkg",
-  "version": "0.0.5",
-  "description": "Package manager CLI for the Generous Games Mimi engine",
+  "version": "0.0.6",
+  "description": "Package manager Mimi engine",
   "main": "src/index.js",
   "bin": {
-    "mimi-pkg": "dist/index.js"
+    "mimi-pkg": "dist/src/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json && npm run copy-assets",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist || rm -rf dist",
-    "copy-assets": "shx cp -r src/assets dist/assets",
+    "copy-assets": "shx cp -r cmake dist/cmake && shx cp -r templates dist/templates",
     "prepublishOnly": "npm run build"
   },
   "repository": {
