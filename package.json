@@ -1,6 +1,6 @@
 {
   "name": "@generousgames/mimi-pkg",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Package manager Mimi engine",
   "main": "src/index.js",
   "bin": {
@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json && npm run copy-assets",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "rimraf dist || rm -rf dist",
-    "copy-assets": "shx cp -r cmake dist/cmake && shx cp -r templates dist/templates",
+    "copy-assets": "shx mkdir -p dist/cmake && shx cp -r cmake/* dist/cmake && shx mkdir -p dist/templates && shx cp -r templates/* dist/templates",
     "prepublishOnly": "npm run build"
   },
   "repository": {
