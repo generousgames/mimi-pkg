@@ -112,13 +112,14 @@ export async function bundle_dependency(config: BuildConfig) {
         }
 
         // Copy headers.
-        const srcPath = path.join(rootDir, config.paths.header_dir ?? "");
-        const destPath = path.join(contentsDir, "include");
-        fs.cpSync(srcPath, destPath, { recursive: true });
+        const headerSrcDir = path.join(rootDir, "build", "lib", config.code_gen.build_type, config.paths.build.include_dir);
+        const headerDestDir = path.join(contentsDir, "include");
+        fs.cpSync(headerSrcDir, headerDestDir, { recursive: true });
 
         // Copy static libs.
-        const staticLibsDir = path.join(rootDir, "build", "lib", config.code_gen.build_type);
-        fs.cpSync(staticLibsDir, path.join(contentsDir, "libs"), { recursive: true });
+        const staticLibsSrcDir = path.join(rootDir, "build", "lib", config.code_gen.build_type, config.paths.build.lib_dir);
+        const staticLibsDestDir = path.join(contentsDir, "libs");
+        fs.cpSync(staticLibsSrcDir, staticLibsDestDir, { recursive: true });
 
         // Create CMake config.
         const templatesDir = path.join(rootDir, "node_modules", "@generousgames", "mimi-pkg", "dist", "templates");

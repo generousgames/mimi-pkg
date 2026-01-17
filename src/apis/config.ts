@@ -11,11 +11,21 @@ export type OptimizationLevel = "-O0" | "-O1" | "-O2" | "-O3" | "-Os" | "-Oz";
 export type Stdlib = "libc++" | "libstdc++";
 export type LinkType = "Static" | "Shared";
 
+export type BuildPathsConfig = {
+    // The directory (relative to build directory) to the binary files.
+    bin_dir: string;
+    // The directory (relative to build directory) to the library files.
+    lib_dir: string;
+    // The directory (relative to build directory) to the include files.
+    include_dir: string;
+};
+
 export type PathsConfig = {
     // The paths to the license files.
     license_files?: string[];
-    // The directory to the header files.
-    header_dir?: string;
+
+    // The build paths configuration.
+    build: BuildPathsConfig;
 };
 
 export type PlatformConfig = {
@@ -138,7 +148,11 @@ export function load_build_config(root_dir: string, preset: string): BuildConfig
         version: manifestJson.version,
         paths: {
             license_files: manifestJson.license_files ?? [],
-            header_dir: manifestJson.header_dir ?? "",
+            build: {
+                bin_dir: manifestJson.build_paths.bin_dir ?? "",
+                lib_dir: manifestJson.build_paths.lib_dir ?? "",
+                include_dir: manifestJson.build_paths.include_dir ?? "",
+            },
         },
         ...manifestJson.configs[preset],
     }

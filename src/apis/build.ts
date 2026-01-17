@@ -37,6 +37,7 @@ export async function build_dependency(config: BuildConfig) {
         await ensureTool("cmake");
         await run("cmake", ["--preset", presetName], { cwd: rootDir, env, verbose: true });
         await run("cmake", ["--build", `projects/${presetName}`, "--config", code_gen.build_type, "--parallel"], { cwd: rootDir, env, verbose: true });
+        await run("cmake", ["--install", `projects/${presetName}`, "--config", code_gen.build_type], { cwd: rootDir, env, verbose: true });
 
         log.ok(`Built successfully!`);
     } catch (error) {
