@@ -18,85 +18,108 @@ set({{packageName}}_BIN_DIR      "${_{{packageVar}}_bindir}")
 # Target: {{targetName}} ({{type}})
 ################################################################################
 
-set(TARGET_NAME {{targetName}})
-
-add_library(${TARGET_NAME} {{type}} IMPORTED GLOBAL)
-
-# Common interface includes
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  INTERFACE_INCLUDE_DIRECTORIES
-    "${_{{packageVar}}_includedir}"{{#includeDirs}}
-    "{{.}}"{{/includeDirs}}
-)
+add_library({{targetName}} {{type}} IMPORTED GLOBAL)
 
 {{#locations.DEBUG}}
 # Debug config
-set_property(TARGET ${TARGET_NAME} PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
+set_property(TARGET {{targetName}} PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 {{/locations.DEBUG}}
 {{#locations.RELEASE}}
 # Release config
-set_property(TARGET ${TARGET_NAME} APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_property(TARGET {{targetName}} APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 {{/locations.RELEASE}}
 {{#locations.SINGLE}}
 # Single config
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_LOCATION
-    "${_{{packageVar}}_libdir}/{{{locations.SINGLE.binary}}}"
-)
+set_target_properties({{targetName}} PROPERTIES
+  IMPORTED_LOCATION "${_{{packageVar}}_libdir}/{{{locations.SINGLE.binary}}}"
 {{#locations.SINGLE.implib}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_IMPLIB
-    "${_{{packageVar}}_libdir}/{{{locations.SINGLE.implib}}}"
-)
+  IMPORTED_IMPLIB "${_{{packageVar}}_libdir}/{{{locations.SINGLE.implib}}}"
 {{/locations.SINGLE.implib}}
+)
 {{/locations.SINGLE}}
 {{#locations.DEBUG}}
+{{#locations.RELEASE}}
+set_target_properties({{targetName}} PROPERTIES
 {{#locations.DEBUG.binary}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_LOCATION_DEBUG
-    "${_{{packageVar}}_libdir}/{{{locations.DEBUG.binary}}}"
+  IMPORTED_LOCATION_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.binary}}}"
+{{/locations.DEBUG.binary}}
+{{#locations.RELEASE.binary}}
+  IMPORTED_LOCATION_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.binary}}}"
+{{/locations.RELEASE.binary}}
+{{#locations.DEBUG.implib}}
+  IMPORTED_IMPLIB_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.implib}}}"
+{{/locations.DEBUG.implib}}
+{{#locations.RELEASE.implib}}
+  IMPORTED_IMPLIB_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.implib}}}"
+{{/locations.RELEASE.implib}}
+)
+{{/locations.RELEASE}}
+{{^locations.RELEASE}}
+{{#locations.DEBUG.binary}}
+set_target_properties({{targetName}} PROPERTIES
+  IMPORTED_LOCATION_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.binary}}}"
+{{#locations.DEBUG.implib}}
+  IMPORTED_IMPLIB_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.implib}}}"
+{{/locations.DEBUG.implib}}
 )
 {{/locations.DEBUG.binary}}
-{{#locations.DEBUG.implib}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_IMPLIB_DEBUG
-    "${_{{packageVar}}_libdir}/{{{locations.DEBUG.implib}}}"
-)
-{{/locations.DEBUG.implib}}
+{{/locations.RELEASE}}
 {{/locations.DEBUG}}
+{{^locations.DEBUG}}
 {{#locations.RELEASE}}
 {{#locations.RELEASE.binary}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_LOCATION_RELEASE
-    "${_{{packageVar}}_libdir}/{{{locations.RELEASE.binary}}}"
+set_target_properties({{targetName}} PROPERTIES
+  IMPORTED_LOCATION_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.binary}}}"
+{{#locations.RELEASE.implib}}
+  IMPORTED_IMPLIB_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.implib}}}"
+{{/locations.RELEASE.implib}}
 )
 {{/locations.RELEASE.binary}}
-{{#locations.RELEASE.implib}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
-  IMPORTED_IMPLIB_RELEASE
-    "${_{{packageVar}}_libdir}/{{{locations.RELEASE.implib}}}"
-)
-{{/locations.RELEASE.implib}}
 {{/locations.RELEASE}}
+{{/locations.DEBUG}}
 {{#linkLibraries.length}}
 # Transitive link interface
-set_property(TARGET ${TARGET_NAME} PROPERTY
+set_property(TARGET {{targetName}} PROPERTY
   INTERFACE_LINK_LIBRARIES
     {{#linkLibraries}}{{{.}}}{{/linkLibraries}}
 )
 {{/linkLibraries.length}}
 {{#compileDefinitions.length}}
 # Optional compile defs / opts
-set_property(TARGET ${TARGET_NAME} PROPERTY
+set_property(TARGET {{targetName}} PROPERTY
   INTERFACE_COMPILE_DEFINITIONS {{#compileDefinitions}}{{.}};{{/compileDefinitions}}
 )
 {{/compileDefinitions.length}}
 {{#compileOptions.length}}
-set_property(TARGET ${TARGET_NAME} PROPERTY
+set_property(TARGET {{targetName}} PROPERTY
   INTERFACE_COMPILE_OPTIONS {{#compileOptions}}{{.}};{{/compileOptions}}
 )
 {{/compileOptions.length}}
 {{/libs}}
+
+{{#interfaceTargetName}}
+{{#libs.length}}
+################################################################################
+# Interface Target: {{interfaceTargetName}}
+################################################################################
+
+add_library({{interfaceTargetName}} INTERFACE IMPORTED GLOBAL)
+
+# Common interface includes
+set_property(TARGET {{interfaceTargetName}} PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES
+    "${_{{packageVar}}_includedir}"{{#extraIncludeDirs}}
+    "{{.}}"{{/extraIncludeDirs}}
+)
+
+# Link all individual library targets
+set(_{{packageVar}}_interface_libs {{#libs}}{{targetName}}{{^last}};{{/last}}{{/libs}})
+set_property(TARGET {{interfaceTargetName}} PROPERTY
+  INTERFACE_LINK_LIBRARIES
+    ${_{{packageVar}}_interface_libs}
+)
+{{/libs.length}}
+{{/interfaceTargetName}}
 
 ################################################################################
 # Back-compat variables for simple consumers
@@ -106,9 +129,9 @@ set({{packageName}}_FOUND TRUE)
 ################################################################################
 # Tidy
 ################################################################################
-unset(TARGET_NAME)
 unset(_{{packageVar}}_cmakedir)
 unset(_{{packageVar}}_root)
 unset(_{{packageVar}}_includedir)
 unset(_{{packageVar}}_libdir)
 unset(_{{packageVar}}_bindir)
+unset(_{{packageVar}}_interface_libs)
