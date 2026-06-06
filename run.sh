@@ -5,13 +5,11 @@
 # (3) Fail on pipe failure
 set -euo pipefail
 
-# Load nvm (path may vary!)
-export NVM_DIR="$HOME/.nvm"
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-  # Load nvm
-  . "$NVM_DIR/nvm.sh"
+# Load fnm
+if command -v fnm > /dev/null 2>&1; then
+  eval "$(fnm env)"
 else
-  echo "❌ nvm not found. Please install nvm first."
+  echo "❌ fnm not found. Please install fnm first."
   exit 1
 fi
 
@@ -24,11 +22,13 @@ if [ "${1:-}" = "setup" ]; then
     rm -rf dist
 
     EXPECTED_NODE_VERSION=$(cat .nvmrc)
-    NODE_VERSION=$(node --version)
 
-    echo "2. Checking Node.js version (${EXPECTED_NODE_VERSION})..."
+    echo "2. Selecting Node.js version (${EXPECTED_NODE_VERSION})..."
+    fnm use --install-if-missing
+
+    NODE_VERSION=$(node --version)
     if [ "$NODE_VERSION" != "$EXPECTED_NODE_VERSION" ]; then
-        echo "❌ Node.js version mismatch. Please use the correct version of Node.js ($EXPECTED_NODE_VERSION)."
+        echo "❌ Node.js version mismatch. Expected $EXPECTED_NODE_VERSION but got $NODE_VERSION."
         exit 1
     fi
 

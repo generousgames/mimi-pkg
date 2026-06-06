@@ -25,6 +25,9 @@ export async function run(cmd: string, args: (string | number)[], opts?: {
 }
 
 export async function ensureTool(name: string): Promise<void> {
-  const which = await $`node -e "process.exit(!Boolean(require('node:child_process').spawnSync(process.platform==='win32'?'where':'which',['${name}'],{stdio:'ignore'}).status===0))"`;
+  // `$.nothrow` is set above, so a missing tool yields a non-zero exitCode
+  // rather than throwing. `where` (Windows) / `which` (POSIX) locate the tool.
+  const finder = process.platform === "win32" ? "where" : "which";
+  const which = await $`${finder} ${name}`;
   if (which.exitCode !== 0) throw new Error(`Missing required tool: ${name}`);
 }
