@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Mustache from "mustache";
-import { BuildConfig } from "./config";
+import { BuildConfig, get_preset } from "./config";
 import { log } from "../utils/log";
 
 type LibLocation = {
@@ -46,12 +46,167 @@ type ConfigInput = {
     extraIncludeDirs?: string[];
     /** libs to export */
     libs: LibSpec[];
+    /** Interface target name (e.g., "deps::zlib") */
+    interfaceTargetName?: string;
 };
 
 ////////////////////////////////////////////////////////////
 
 function toPackageVar(name: string) {
     return name.replace(/[^A-Za-z0-9_]/g, "_");
+}
+
+/**
+ * Library file extensions to scan for
+ */
+const LIBRARY_EXTENSIONS = [".a", ".so", ".dylib", ".lib", ".dll"];
+
+/**
+ * Check if a file is a library based on its extension
+ */
+function isLibraryFile(filename: string): boolean {
+    const ext = path.extname(filename).toLowerCase();
+    return LIBRARY_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Determine if a library is static or shared based on extension
+ */
+function getLibraryType(filename: string): "STATIC" | "SHARED" {
+    const ext = path.extname(filename).toLowerCase();
+    // Static libraries: .a, .lib
+    // Shared libraries: .so, .dylib, .dll
+    if (ext === ".a" || ext === ".lib") {
+        return "STATIC";
+    }
+    return "SHARED";
+}
+
+/**
+ * Normalize library name for matching (remove trailing 'd' for Debug suffix matching)
+ */
+function normalizeLibraryName(filename: string): string {
+    const nameWithoutExt = path.basename(filename, path.extname(filename));
+    // Remove trailing 'd' if present (common Debug suffix)
+    if (nameWithoutExt.endsWith("d") && nameWithoutExt.length > 1) {
+        return nameWithoutExt.slice(0, -1);
+    }
+    return nameWithoutExt;
+}
+
+/**
+ * Recursively find all library files in a directory
+ */
+function findLibraryFiles(dir: string, baseDir: string = dir): string[] {
+    const files: string[] = [];
+    
+    if (!fs.existsSync(dir)) {
+        return files;
+    }
+    
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            // Recursively search subdirectories
+            files.push(...findLibraryFiles(fullPath, baseDir));
+        } else if (entry.isFile() && isLibraryFile(entry.name)) {
+            // Return path relative to baseDir
+            const relativePath = path.relative(baseDir, fullPath);
+            files.push(relativePath);
+        }
+    }
+    
+    return files;
+}
+
+/**
+ * Discover libraries from bundle libs directories
+ */
+function discoverLibraries(
+    rootDir: string,
+    debugPreset: string | null,
+    releasePreset: string | null
+): LibSpec[] {
+    const libraries = new Map<string, LibSpec>();
+
+    // Scan Debug bundle if it exists
+    if (debugPreset) {
+        const debugLibsDir = path.join(rootDir, "bundles", debugPreset, "contents", "libs");
+        if (fs.existsSync(debugLibsDir)) {
+            const files = findLibraryFiles(debugLibsDir);
+            for (const file of files) {
+                const filename = path.basename(file);
+                const targetName = path.basename(file, path.extname(filename));
+                const normalized = normalizeLibraryName(filename);
+                
+                let lib = libraries.get(normalized);
+                if (!lib) {
+                    lib = {
+                        targetName: targetName,
+                        type: getLibraryType(filename),
+                        includeDirs: [],
+                        linkLibraries: [],
+                        compileDefinitions: [],
+                        compileOptions: [],
+                        locations: {},
+                    };
+                    libraries.set(normalized, lib);
+                }
+                if (!lib.locations) {
+                    lib.locations = {};
+                }
+                lib.locations.DEBUG = { binary: file };
+            }
+        }
+    }
+
+    // Scan Release bundle if it exists
+    if (releasePreset) {
+        const releaseLibsDir = path.join(rootDir, "bundles", releasePreset, "contents", "libs");
+        if (fs.existsSync(releaseLibsDir)) {
+            const files = findLibraryFiles(releaseLibsDir);
+            for (const file of files) {
+                const filename = path.basename(file);
+                const targetName = path.basename(file, path.extname(filename));
+                const normalized = normalizeLibraryName(filename);
+                
+                let lib = libraries.get(normalized);
+                if (!lib) {
+                    lib = {
+                        targetName: targetName,
+                        type: getLibraryType(filename),
+                        includeDirs: [],
+                        linkLibraries: [],
+                        compileDefinitions: [],
+                        compileOptions: [],
+                        locations: {},
+                    };
+                    libraries.set(normalized, lib);
+                } else {
+                    // Use Release target name if Debug doesn't exist
+                    if (!lib.locations?.DEBUG) {
+                        lib.targetName = targetName;
+                    }
+                }
+                if (!lib.locations) {
+                    lib.locations = {};
+                }
+                lib.locations.RELEASE = { binary: file };
+            }
+        }
+    }
+
+    // Filter out libraries with no locations and clean up empty locations
+    return Array.from(libraries.values())
+        .map(lib => ({
+            ...lib,
+            locations: lib.locations && Object.keys(lib.locations).length > 0 
+                ? lib.locations 
+                : undefined,
+        }))
+        .filter(lib => lib.locations !== undefined);
 }
 
 function generateCMakeConfig(input: ConfigInput, templatesDir: string, outputPath: string) {
@@ -62,20 +217,24 @@ function generateCMakeConfig(input: ConfigInput, templatesDir: string, outputPat
     // Normalize arrays
     const normalize = <T>(arr?: T[]) => (arr && arr.length ? arr : []);
 
+    const libsWithMeta = input.libs.map((lib, index) => ({
+        ...lib,
+        includeDirs: normalize(lib.includeDirs),
+        linkLibraries: normalize(lib.linkLibraries),
+        compileDefinitions: normalize(lib.compileDefinitions),
+        compileOptions: normalize(lib.compileOptions),
+        locations: lib.locations,
+        last: index === input.libs.length - 1,
+    }));
+
     const view = {
         packageName: input.packageName,
         version: input.version ?? "0.0.0",
         namespace: input.namespace,
         packageVar,
         extraIncludeDirs: normalize(input.extraIncludeDirs),
-        libs: input.libs.map((lib) => ({
-            ...lib,
-            includeDirs: normalize(lib.includeDirs),
-            linkLibraries: normalize(lib.linkLibraries),
-            compileDefinitions: normalize(lib.compileDefinitions),
-            compileOptions: normalize(lib.compileOptions),
-            locations: lib.locations,
-        })),
+        libs: libsWithMeta,
+        interfaceTargetName: input.interfaceTargetName,
     };
 
     const rendered = Mustache.render(template, view);
@@ -132,43 +291,52 @@ function perConfig(
 
 ////////////////////////////////////////////////////////////
 
-export function generate_cmake_config(templatesDir: string, config: BuildConfig, outputPath: string) {
-    const libs = config.output.map((lib) => {
-
-        let locations: PerConfigLocations | undefined;
-        if (config.code_gen.link_type === "Static") {
-            if (config.code_gen.build_type === "Debug") {
-                locations = debugStatic(`${lib.path}`);
-            } else if (config.code_gen.build_type === "Release") {
-                locations = releaseStatic(`${lib.path}`);
-            } else {
-                locations = singleStatic(`${lib.path}`);
-            }
-        } else if (config.code_gen.link_type === "Shared") {
-            locations = singleShared(`${lib.path}`);
-        } else {
-            locations = undefined;
+export function generate_cmake_config(
+    templatesDir: string,
+    config: BuildConfig,
+    outputPath: string
+) {
+    // Determine Debug and Release presets
+    const currentPreset = get_preset(config);
+    const isDebug = config.code_gen.build_type === "Debug";
+    const isRelease = config.code_gen.build_type === "Release";
+    
+    let debugPreset: string | null = null;
+    let releasePreset: string | null = null;
+    
+    if (isDebug) {
+        debugPreset = currentPreset;
+        // Try to find Release preset
+        const releasePresetName = currentPreset.replace("-Debug", "-Release");
+        const releaseLibsDir = path.join(config.rootDir, "bundles", releasePresetName, "contents", "libs");
+        if (fs.existsSync(releaseLibsDir)) {
+            releasePreset = releasePresetName;
         }
+    } else if (isRelease) {
+        releasePreset = currentPreset;
+        // Try to find Debug preset
+        const debugPresetName = currentPreset.replace("-Release", "-Debug");
+        const debugLibsDir = path.join(config.rootDir, "bundles", debugPresetName, "contents", "libs");
+        if (fs.existsSync(debugLibsDir)) {
+            debugPreset = debugPresetName;
+        }
+    }
 
-        const type: "STATIC" | "SHARED" = config.code_gen.link_type === "Static" ? "STATIC" : "SHARED";
+    // Discover libraries from bundle directories
+    const libs = discoverLibraries(config.rootDir, debugPreset, releasePreset);
 
-        return ({
-            targetName: lib.name,
-            type,
-            includeDirs: [],
-            linkLibraries: [],
-            compileDefinitions: [],
-            compileOptions: [],
-            locations
-        });
-    });
+    // Generate interface target name: {namespace}::{packageName}
+    const interfaceTargetName = config.namespace 
+        ? `${config.namespace}::${config.name}`
+        : config.name;
 
     const cmakeConfigParams: ConfigInput = {
         packageName: config.name,
         version: config.version,
         namespace: config.namespace,
         extraIncludeDirs: [],
-        libs
+        libs,
+        interfaceTargetName,
     };
 
     generateCMakeConfig(cmakeConfigParams, templatesDir, outputPath);
