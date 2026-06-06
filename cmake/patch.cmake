@@ -91,7 +91,6 @@ json_get(MF_STDLIB "${_runtime}" stdlib) # "libc++"|"libstdc++"|"msvc"
 json_get(MF_DEPLOY "${_runtime}" deployment_target) # e.g. "12.0" (macOS)
 
 json_get(MF_LINK "${_codegen}" link_type) # "Static"|"Dynamic"
-json_get(MF_OPT "${_codegen}" optimization) # "-O3"|"-O0"|...
 
 # Top-level options (not per-config)
 json_get(_options "${_mf_raw}" options) # object or ""
@@ -176,16 +175,12 @@ if(APPLE AND MF_DEPLOY)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "${MF_DEPLOY}" CACHE STRING "" FORCE)
 endif()
 
-# ---- code_gen: link_type + optimization -------------------------------------
+# ---- code_gen: link_type -----------------------------------------------------
 # link_type provides a default for BUILD_SHARED_LIBS if top-level option absent
 if(MF_LINK STREQUAL "Static")
     set(_mf_default_shared OFF)
 elseif(MF_LINK STREQUAL "Dynamic")
     set(_mf_default_shared ON)
-endif()
-
-if(MF_OPT)
-    list(APPEND _cxx_opts "${MF_OPT}")
 endif()
 
 # ---- options: BUILD_SHARED_LIBS (top-level) ---------------------------------

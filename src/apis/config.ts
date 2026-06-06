@@ -7,7 +7,6 @@ const BUILD_MANIFEST_FILE = "manifest.json";
 export type OSType = "macos" | "ios" | "windows" | "linux";
 export type ArchType = "arm64" | "x86_64";
 export type BuildType = "Release" | "Debug";
-export type OptimizationLevel = "-O0" | "-O1" | "-O2" | "-O3" | "-Os" | "-Oz";
 export type Stdlib = "libc++" | "libstdc++";
 export type LinkType = "Static" | "Shared";
 
@@ -60,8 +59,6 @@ export type CodeGenConfig = {
     build_type: BuildType;
     // The link type to use.
     link_type: LinkType;
-    // The optimization level to use.
-    optimization: OptimizationLevel;
 };
 
 export type MacOSRuntimeOptions = {
@@ -169,7 +166,6 @@ export function print_build_config(config: BuildConfig) {
     log.info(`> C++ Compiler: ${config.compiler.cpp}`);
     log.info(`> Stdlib: ${config.runtime.stdlib}`);
     log.info(`> C++ Std: ${config.language.cpp_std}`);
-    log.info(`> C++ Flags: ${config.code_gen.optimization}`);
     if (config.platform.os === "macos") {
         log.info(`> macOS Deployment Target: ${config.runtime.deployment_target}`);
     }

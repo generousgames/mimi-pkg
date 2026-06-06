@@ -47,7 +47,7 @@ export function tempWorkspace(): Workspace {
                 version: "1.0.0",
                 paths: { build: { bin_dir: "", lib_dir: "", include_dir: "" } },
                 platform: { os: p.os, arch: p.arch },
-                code_gen: { build_type: p.build_type, link_type: p.link_type, optimization: "-O3" },
+                code_gen: { build_type: p.build_type, link_type: p.link_type },
             } as unknown as BuildConfig;
         },
         render(config) {

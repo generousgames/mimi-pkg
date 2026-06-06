@@ -34,7 +34,7 @@ describe("load_build_config", () => {
             configs: {
                 [preset]: {
                     platform: { os: "macos", arch: "arm64" },
-                    code_gen: { build_type: "Release", link_type: "Static", optimization: "-O3" },
+                    code_gen: { build_type: "Release", link_type: "Static" },
                 },
             },
         };

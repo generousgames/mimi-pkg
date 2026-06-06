@@ -25,7 +25,7 @@ export async function build_dependency(config: BuildConfig) {
 
         log.info(`Building ${config.name}(${config.version})...`);
         log.info(`> Preset: ${presetName}`);
-        log.info(`> Compiler: ${compiler.c} ${compiler.cpp} ${runtime.stdlib} ${language.cpp_std} ${code_gen.optimization}`);
+        log.info(`> Compiler: ${compiler.c} ${compiler.cpp} ${runtime.stdlib} ${language.cpp_std}`);
         if (platform.os === "macos") {
             env["BUILD_OSX_DEPLOYMENT_TARGET"] = runtime.deployment_target;
             log.info(`> macOS Deployment Target: ${runtime.deployment_target}`);
