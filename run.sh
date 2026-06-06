@@ -53,6 +53,13 @@ if [ "${1:-}" = "clean" ]; then
     exit 0
 fi
 
+# Run the tests
+if [ "${1:-}" = "tests" ]; then
+    echo "Running tests..."
+    npm test
+    exit 0
+fi
+
 # Publish the package to the npm registry
 if [ "${1:-}" = "publish" ]; then
     echo "Publishing the package..."
@@ -92,6 +99,7 @@ echo "Commands:"
 echo "> run.sh setup              - Cleans the package and installs dependencies."
 echo "> run.sh build              - Builds the package."
 echo "> run.sh clean              - Cleans the package."
+echo "> run.sh tests              - Runs the test suite."
 echo "> run.sh publish            - Publishes the package to the npm registry."
 echo "> run.sh link               - Links the package to the global scope."
 echo "> run.sh unlink             - Unlinks the package from the global scope."
