@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Mustache from "mustache";
-import { BuildConfig, get_preset } from "./config";
+import { BuildConfig, LinkType, get_preset } from "./config";
 import { log } from "../utils/log";
 
 type LibLocation = {
@@ -57,41 +57,51 @@ function toPackageVar(name: string) {
 }
 
 /**
- * Library file extensions to scan for
- */
-const LIBRARY_EXTENSIONS = [".a", ".so", ".dylib", ".lib", ".dll"];
-
-/**
- * Check if a file is a library based on its extension
+ * Check if a file is a library we should export. Recognizes static archives
+ * (.a/.lib), shared libraries (.dylib/.dll) and versioned shared objects
+ * (libfoo.so, libfoo.so.1, libfoo.so.1.2.3).
  */
 function isLibraryFile(filename: string): boolean {
-    const ext = path.extname(filename).toLowerCase();
-    return LIBRARY_EXTENSIONS.includes(ext);
+    const lower = filename.toLowerCase();
+    if (/\.so(\.\d+)*$/.test(lower)) return true;
+    return [".a", ".lib", ".dylib", ".dll"].includes(path.extname(lower));
 }
 
-/**
- * Determine if a library is static or shared based on extension
- */
-function getLibraryType(filename: string): "STATIC" | "SHARED" {
-    const ext = path.extname(filename).toLowerCase();
-    // Static libraries: .a, .lib
-    // Shared libraries: .so, .dylib, .dll
-    if (ext === ".a" || ext === ".lib") {
-        return "STATIC";
-    }
-    return "SHARED";
-}
+type LibRole = "binary" | "implib";
+type ParsedLib = { base: string; role: LibRole; type: "STATIC" | "SHARED" };
 
 /**
- * Normalize library name for matching (remove trailing 'd' for Debug suffix matching)
+ * Parse a library filename into its logical base name, role and link type.
+ *
+ * `linkType` disambiguates Windows `.lib`, which is a static archive for a
+ * Static build but a DLL *import library* for a Shared build — guessing from
+ * the extension alone classifies every import lib as static, which is wrong.
+ * Returns null for files that aren't libraries.
  */
-function normalizeLibraryName(filename: string): string {
-    const nameWithoutExt = path.basename(filename, path.extname(filename));
-    // Remove trailing 'd' if present (common Debug suffix)
-    if (nameWithoutExt.endsWith("d") && nameWithoutExt.length > 1) {
-        return nameWithoutExt.slice(0, -1);
+function parseLibFile(filename: string, linkType: LinkType): ParsedLib | null {
+    const lower = filename.toLowerCase();
+
+    // Versioned/unversioned shared objects: libfoo.so, libfoo.so.1.2.3
+    const soMatch = lower.match(/^(.*)\.so(?:\.\d+)*$/);
+    if (soMatch) {
+        return { base: filename.slice(0, soMatch[1].length), role: "binary", type: "SHARED" };
     }
-    return nameWithoutExt;
+
+    const ext = path.extname(lower);
+    const base = filename.slice(0, filename.length - path.extname(filename).length);
+    switch (ext) {
+        case ".a":
+            return { base, role: "binary", type: "STATIC" };
+        case ".dylib":
+        case ".dll":
+            return { base, role: "binary", type: "SHARED" };
+        case ".lib":
+            return linkType === "Shared"
+                ? { base, role: "implib", type: "SHARED" }
+                : { base, role: "binary", type: "STATIC" };
+        default:
+            return null;
+    }
 }
 
 /**
@@ -99,13 +109,13 @@ function normalizeLibraryName(filename: string): string {
  */
 function findLibraryFiles(dir: string, baseDir: string = dir): string[] {
     const files: string[] = [];
-    
+
     if (!fs.existsSync(dir)) {
         return files;
     }
-    
+
     const entries = fs.readdirSync(dir, { withFileTypes: true });
-    
+
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
@@ -117,96 +127,110 @@ function findLibraryFiles(dir: string, baseDir: string = dir): string[] {
             files.push(relativePath);
         }
     }
-    
+
     return files;
 }
 
+/** A single config's library, with a DLL paired to its import lib (Windows). */
+type Artifact = { type: "STATIC" | "SHARED"; binary?: string; implib?: string };
+
 /**
- * Discover libraries from bundle libs directories
+ * Group one bundle's library files into logical artifacts keyed by base name.
+ * A `.dll` and its matching `.lib` import library collapse into one SHARED
+ * artifact (binary = .dll, implib = .lib).
+ */
+function groupArtifacts(files: string[], linkType: LinkType): Map<string, Artifact> {
+    const artifacts = new Map<string, Artifact>();
+    for (const file of files) {
+        const parsed = parseLibFile(path.basename(file), linkType);
+        if (!parsed) continue;
+        const art = artifacts.get(parsed.base) ?? { type: parsed.type };
+        if (parsed.role === "implib") {
+            art.implib = file;
+            art.type = "SHARED"; // an import library always implies a shared target
+        } else {
+            art.binary = file;
+            if (parsed.type === "SHARED") art.type = "SHARED";
+        }
+        artifacts.set(parsed.base, art);
+    }
+    return artifacts;
+}
+
+/** Debug postfixes to try when matching a Debug lib to its Release counterpart. */
+const DEBUG_POSTFIXES = ["d", "_d", "-d"];
+
+/**
+ * Discover libraries from bundle libs directories, merging the Debug and
+ * Release variants of each library into a single per-config IMPORTED target.
+ *
+ * Release names are treated as canonical, so a library whose name legitimately
+ * ends in "d" (e.g. libzstd) is never mangled. A Debug library is matched to
+ * its Release counterpart by exact name first, then by stripping a known
+ * CMAKE_DEBUG_POSTFIX (d / _d / -d).
  */
 function discoverLibraries(
     rootDir: string,
     debugPreset: string | null,
-    releasePreset: string | null
+    releasePreset: string | null,
+    linkType: LinkType
 ): LibSpec[] {
-    const libraries = new Map<string, LibSpec>();
+    const libsDir = (preset: string) =>
+        path.join(rootDir, "bundles", preset, "contents", "libs");
 
-    // Scan Debug bundle if it exists
-    if (debugPreset) {
-        const debugLibsDir = path.join(rootDir, "bundles", debugPreset, "contents", "libs");
-        if (fs.existsSync(debugLibsDir)) {
-            const files = findLibraryFiles(debugLibsDir);
-            for (const file of files) {
-                const filename = path.basename(file);
-                const targetName = path.basename(file, path.extname(filename));
-                const normalized = normalizeLibraryName(filename);
-                
-                let lib = libraries.get(normalized);
-                if (!lib) {
-                    lib = {
-                        targetName: targetName,
-                        type: getLibraryType(filename),
-                        includeDirs: [],
-                        linkLibraries: [],
-                        compileDefinitions: [],
-                        compileOptions: [],
-                        locations: {},
-                    };
-                    libraries.set(normalized, lib);
-                }
-                if (!lib.locations) {
-                    lib.locations = {};
-                }
-                lib.locations.DEBUG = { binary: file };
-            }
+    const debugArtifacts = debugPreset
+        ? groupArtifacts(findLibraryFiles(libsDir(debugPreset)), linkType)
+        : new Map<string, Artifact>();
+    const releaseArtifacts = releasePreset
+        ? groupArtifacts(findLibraryFiles(libsDir(releasePreset)), linkType)
+        : new Map<string, Artifact>();
+
+    const targets = new Map<string, LibSpec>();
+
+    const upsert = (name: string, art: Artifact, cfg: "DEBUG" | "RELEASE") => {
+        let spec = targets.get(name);
+        if (!spec) {
+            spec = {
+                targetName: name,
+                type: art.type,
+                includeDirs: [],
+                linkLibraries: [],
+                compileDefinitions: [],
+                compileOptions: [],
+                locations: {},
+            };
+            targets.set(name, spec);
         }
+        // A shared classification in any config wins (import libs imply shared).
+        if (art.type === "SHARED") spec.type = "SHARED";
+        spec.locations![cfg] = { binary: art.binary ?? "", implib: art.implib ?? null };
+    };
+
+    // Release names are canonical.
+    for (const [base, art] of releaseArtifacts) {
+        upsert(base, art, "RELEASE");
     }
 
-    // Scan Release bundle if it exists
-    if (releasePreset) {
-        const releaseLibsDir = path.join(rootDir, "bundles", releasePreset, "contents", "libs");
-        if (fs.existsSync(releaseLibsDir)) {
-            const files = findLibraryFiles(releaseLibsDir);
-            for (const file of files) {
-                const filename = path.basename(file);
-                const targetName = path.basename(file, path.extname(filename));
-                const normalized = normalizeLibraryName(filename);
-                
-                let lib = libraries.get(normalized);
-                if (!lib) {
-                    lib = {
-                        targetName: targetName,
-                        type: getLibraryType(filename),
-                        includeDirs: [],
-                        linkLibraries: [],
-                        compileDefinitions: [],
-                        compileOptions: [],
-                        locations: {},
-                    };
-                    libraries.set(normalized, lib);
-                } else {
-                    // Use Release target name if Debug doesn't exist
-                    if (!lib.locations?.DEBUG) {
-                        lib.targetName = targetName;
+    // Match Debug libs onto the canonical (Release) name where possible.
+    for (const [base, art] of debugArtifacts) {
+        let canonical = base;
+        if (!releaseArtifacts.has(base)) {
+            for (const sfx of DEBUG_POSTFIXES) {
+                if (base.length > sfx.length && base.endsWith(sfx)) {
+                    const stripped = base.slice(0, base.length - sfx.length);
+                    if (releaseArtifacts.has(stripped)) {
+                        canonical = stripped;
+                        break;
                     }
                 }
-                if (!lib.locations) {
-                    lib.locations = {};
-                }
-                lib.locations.RELEASE = { binary: file };
             }
         }
+        upsert(canonical, art, "DEBUG");
     }
 
-    // Filter out libraries with no locations and clean up empty locations
-    return Array.from(libraries.values())
-        .map(lib => ({
-            ...lib,
-            locations: lib.locations && Object.keys(lib.locations).length > 0 
-                ? lib.locations 
-                : undefined,
-        }))
-        .filter(lib => lib.locations !== undefined);
+    return Array.from(targets.values()).filter(
+        (lib) => lib.locations && Object.keys(lib.locations).length > 0
+    );
 }
 
 function generateCMakeConfig(input: ConfigInput, templatesDir: string, outputPath: string) {
@@ -243,54 +267,6 @@ function generateCMakeConfig(input: ConfigInput, templatesDir: string, outputPat
 
 ////////////////////////////////////////////////////////////
 
-function singleStatic(libPath: string): PerConfigLocations {
-    return { SINGLE: { binary: libPath } };
-}
-function debugStatic(libPath: string): PerConfigLocations {
-    return { DEBUG: { binary: libPath } };
-}
-function releaseStatic(libPath: string): PerConfigLocations {
-    return { RELEASE: { binary: libPath } };
-}
-
-function singleShared(
-    libPath: string,
-    implibDir?: string,
-    implibName?: string
-): PerConfigLocations {
-    return {
-        SINGLE: {
-            binary: libPath,
-            implib: implibDir && implibName ? path.join(implibDir, implibName) : null,
-        },
-    };
-}
-
-function perConfig(
-    libOrBinDir: { debug: string; release: string },
-    filenames: {
-        debug: { binary: string; implib?: string | null };
-        release: { binary: string; implib?: string | null };
-    }
-): PerConfigLocations {
-    return {
-        DEBUG: {
-            binary: path.join(libOrBinDir.debug, filenames.debug.binary),
-            implib: filenames.debug.implib
-                ? path.join(libOrBinDir.debug, filenames.debug.implib)
-                : null,
-        },
-        RELEASE: {
-            binary: path.join(libOrBinDir.release, filenames.release.binary),
-            implib: filenames.release.implib
-                ? path.join(libOrBinDir.release, filenames.release.implib)
-                : null,
-        },
-    };
-}
-
-////////////////////////////////////////////////////////////
-
 export function generate_cmake_config(
     templatesDir: string,
     config: BuildConfig,
@@ -323,7 +299,7 @@ export function generate_cmake_config(
     }
 
     // Discover libraries from bundle directories
-    const libs = discoverLibraries(config.rootDir, debugPreset, releasePreset);
+    const libs = discoverLibraries(config.rootDir, debugPreset, releasePreset, config.code_gen.link_type);
 
     // Generate interface target name: {namespace}::{packageName}
     const interfaceTargetName = config.namespace 

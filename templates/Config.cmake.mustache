@@ -55,26 +55,26 @@ set_target_properties({{targetName}} PROPERTIES
 )
 {{/locations.RELEASE}}
 {{^locations.RELEASE}}
-{{#locations.DEBUG.binary}}
 set_target_properties({{targetName}} PROPERTIES
+{{#locations.DEBUG.binary}}
   IMPORTED_LOCATION_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.binary}}}"
+{{/locations.DEBUG.binary}}
 {{#locations.DEBUG.implib}}
   IMPORTED_IMPLIB_DEBUG "${_{{packageVar}}_libdir}/{{{locations.DEBUG.implib}}}"
 {{/locations.DEBUG.implib}}
 )
-{{/locations.DEBUG.binary}}
 {{/locations.RELEASE}}
 {{/locations.DEBUG}}
 {{^locations.DEBUG}}
 {{#locations.RELEASE}}
-{{#locations.RELEASE.binary}}
 set_target_properties({{targetName}} PROPERTIES
+{{#locations.RELEASE.binary}}
   IMPORTED_LOCATION_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.binary}}}"
+{{/locations.RELEASE.binary}}
 {{#locations.RELEASE.implib}}
   IMPORTED_IMPLIB_RELEASE "${_{{packageVar}}_libdir}/{{{locations.RELEASE.implib}}}"
 {{/locations.RELEASE.implib}}
 )
-{{/locations.RELEASE.binary}}
 {{/locations.RELEASE}}
 {{/locations.DEBUG}}
 {{#linkLibraries.length}}
