@@ -29,9 +29,11 @@ set_property(TARGET {{targetName}} PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 set_property(TARGET {{targetName}} APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 {{/locations.RELEASE}}
 {{#locations.SINGLE}}
-# Single config
+# Single config (config-agnostic)
 set_target_properties({{targetName}} PROPERTIES
+{{#locations.SINGLE.binary}}
   IMPORTED_LOCATION "${_{{packageVar}}_libdir}/{{{locations.SINGLE.binary}}}"
+{{/locations.SINGLE.binary}}
 {{#locations.SINGLE.implib}}
   IMPORTED_IMPLIB "${_{{packageVar}}_libdir}/{{{locations.SINGLE.implib}}}"
 {{/locations.SINGLE.implib}}

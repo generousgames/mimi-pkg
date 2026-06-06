@@ -5,6 +5,7 @@
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { tempWorkspace, type Workspace } from "./helpers";
+import { log } from "../src/utils/log";
 
 describe("cmake config generation", () => {
     let ws: Workspace;
@@ -53,15 +54,45 @@ describe("cmake config generation", () => {
         assert.doesNotMatch(r, /_my\+pkg_/);
     });
 
-    it("debug-only preset emits DEBUG locations and no RELEASE", () => {
-        ws.makeLibs("macos-arm64-Debug", ["libz.a"]);
-        const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Debug", link_type: "Static" }));
-        assert.match(r, /IMPORTED_CONFIGURATIONS DEBUG/);
-        assert.match(r, /IMPORTED_LOCATION_DEBUG "[^"]*\/libz\.a"/);
-        assert.doesNotMatch(r, /_RELEASE/);
+    describe("single vs multi config (#5)", () => {
+        it("single-config build emits a config-agnostic IMPORTED_LOCATION", () => {
+            ws.makeLibs("macos-arm64-Release", ["libz.a"]);
+            const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Release", link_type: "Static" }));
+            assert.match(r, /IMPORTED_LOCATION "[^"]*\/libz\.a"/);
+            assert.doesNotMatch(r, /IMPORTED_LOCATION_RELEASE/);
+            assert.doesNotMatch(r, /IMPORTED_CONFIGURATIONS/);
+        });
+
+        it("debug-only build is also config-agnostic", () => {
+            ws.makeLibs("macos-arm64-Debug", ["libz.a"]);
+            const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Debug", link_type: "Static" }));
+            assert.match(r, /IMPORTED_LOCATION "[^"]*\/libz\.a"/);
+            assert.doesNotMatch(r, /IMPORTED_LOCATION_DEBUG/);
+            assert.doesNotMatch(r, /IMPORTED_CONFIGURATIONS/);
+        });
+
+        it("multi-config build keeps per-config locations (not collapsed)", () => {
+            ws.makeLibs("macos-arm64-Release", ["libz.a"]);
+            ws.makeLibs("macos-arm64-Debug", ["libz.a"]);
+            const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Release", link_type: "Static" }));
+            assert.match(r, /IMPORTED_CONFIGURATIONS DEBUG/);
+            assert.match(r, /IMPORTED_LOCATION_DEBUG "[^"]*\/libz\.a"/);
+            assert.match(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/libz\.a"/);
+            assert.doesNotMatch(r, /IMPORTED_LOCATION "/); // not the config-agnostic form
+        });
     });
 
-    // Known gaps tracked for a future change (see merge commit notes):
-    it("single-config builds should emit a config-agnostic IMPORTED_LOCATION (#5)", { todo: true });
-    it("empty discovery should warn instead of silently producing an empty config (#6)", { todo: true });
+    it("warns when no libraries are discovered (#6), exporting headers only", () => {
+        const original = log.warn;
+        const warnings: string[] = [];
+        log.warn = (...m: unknown[]) => { warnings.push(m.join(" ")); };
+        try {
+            // no makeLibs -> nothing under bundles/<preset>/contents/libs
+            const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Release", link_type: "Static" }));
+            assert.ok(warnings.some((w) => /No libraries discovered/.test(w)), `warnings: ${warnings}`);
+            assert.doesNotMatch(r, /add_library\(/); // no targets, header-only config
+        } finally {
+            log.warn = original;
+        }
+    });
 });

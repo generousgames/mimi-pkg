@@ -228,6 +228,18 @@ function discoverLibraries(
         upsert(canonical, art, "DEBUG");
     }
 
+    // Collapse single-config libraries to a config-agnostic SINGLE location, so
+    // a consumer building in any configuration resolves the one artifact we
+    // ship (config-specific IMPORTED_LOCATION_<CONFIG> alone would leave a
+    // mismatched consumer config with no library to link).
+    for (const spec of targets.values()) {
+        const locs = spec.locations!;
+        const cfgs = Object.keys(locs) as ("DEBUG" | "RELEASE")[];
+        if (cfgs.length === 1) {
+            spec.locations = { SINGLE: locs[cfgs[0]]! };
+        }
+    }
+
     return Array.from(targets.values()).filter(
         (lib) => lib.locations && Object.keys(lib.locations).length > 0
     );
@@ -300,6 +312,13 @@ export function generate_cmake_config(
 
     // Discover libraries from bundle directories
     const libs = discoverLibraries(config.rootDir, debugPreset, releasePreset, config.code_gen.link_type);
+
+    if (libs.length === 0) {
+        log.warn(
+            `No libraries discovered for ${config.name} (${currentPreset}) under ` +
+            `bundles/${currentPreset}/contents/libs; generated config exports headers only.`
+        );
+    }
 
     // Generate interface target name: {namespace}::{packageName}
     const interfaceTargetName = config.namespace 

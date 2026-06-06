@@ -19,7 +19,9 @@ describe("cmake auto-discovery", () => {
         ws.makeLibs("macos-arm64-Release", ["libz.a"]);
         const r = ws.render(ws.cfg({ os: "macos", arch: "arm64", build_type: "Release", link_type: "Static" }));
         assert.match(r, /add_library\(libz STATIC IMPORTED/);
-        assert.match(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/libz\.a"/);
+        // single config -> config-agnostic location (see #5)
+        assert.match(r, /IMPORTED_LOCATION "[^"]*\/libz\.a"/);
+        assert.doesNotMatch(r, /IMPORTED_LOCATION_RELEASE/);
     });
 
     describe("Debug/Release merge with debug postfix (#1, #2)", () => {
@@ -53,7 +55,7 @@ describe("cmake auto-discovery", () => {
         ws.makeLibs("linux-x86_64-Release", ["libbar.so.1.2.3"]);
         const r = ws.render(ws.cfg({ os: "linux", arch: "x86_64", build_type: "Release", link_type: "Shared" }));
         assert.match(r, /add_library\(libbar SHARED IMPORTED/);
-        assert.match(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/libbar\.so\.1\.2\.3"/);
+        assert.match(r, /IMPORTED_LOCATION "[^"]*\/libbar\.so\.1\.2\.3"/);
     });
 
     it("#4 Windows shared: pairs .dll + .lib into one SHARED target", () => {
@@ -61,15 +63,15 @@ describe("cmake auto-discovery", () => {
         const r = ws.render(ws.cfg({ os: "windows", arch: "x86_64", build_type: "Release", link_type: "Shared" }));
         assert.equal((r.match(/add_library\(glfw3 /g) || []).length, 1);
         assert.match(r, /add_library\(glfw3 SHARED IMPORTED/);
-        assert.match(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/glfw3\.dll"/);
-        assert.match(r, /IMPORTED_IMPLIB_RELEASE "[^"]*\/glfw3\.lib"/);
+        assert.match(r, /IMPORTED_LOCATION "[^"]*\/glfw3\.dll"/);
+        assert.match(r, /IMPORTED_IMPLIB "[^"]*\/glfw3\.lib"/);
     });
 
     it("Windows static: .lib is a STATIC archive, not an import library", () => {
         ws.makeLibs("windows-x86_64-Release", ["zlib.lib"]);
         const r = ws.render(ws.cfg({ os: "windows", arch: "x86_64", build_type: "Release", link_type: "Static" }));
         assert.match(r, /add_library\(zlib STATIC IMPORTED/);
-        assert.match(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/zlib\.lib"/);
+        assert.match(r, /IMPORTED_LOCATION "[^"]*\/zlib\.lib"/);
         assert.doesNotMatch(r, /IMPORTED_IMPLIB/);
     });
 
@@ -77,7 +79,7 @@ describe("cmake auto-discovery", () => {
         ws.makeLibs("windows-x86_64-Release", ["mylib.lib"]);
         const r = ws.render(ws.cfg({ os: "windows", arch: "x86_64", build_type: "Release", link_type: "Shared" }));
         assert.match(r, /add_library\(mylib SHARED IMPORTED/);
-        assert.match(r, /IMPORTED_IMPLIB_RELEASE "[^"]*\/mylib\.lib"/);
-        assert.doesNotMatch(r, /IMPORTED_LOCATION_RELEASE "[^"]*\/"/); // no empty location
+        assert.match(r, /IMPORTED_IMPLIB "[^"]*\/mylib\.lib"/);
+        assert.doesNotMatch(r, /IMPORTED_LOCATION/); // no binary -> no location line at all
     });
 });
