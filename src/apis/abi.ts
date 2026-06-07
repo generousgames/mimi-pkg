@@ -64,7 +64,7 @@ export function generate_abi_from_path(path: string): AbiInfo {
  * @param abi_info - The ABI information.
  * @returns The ABI fingerprint.
  */
-function generate_abi_fingerprint(abi_info: AbiInfo) {
+export function generate_abi_fingerprint(abi_info: AbiInfo) {
     const { os, arch, compilerFamily, compilerFrontendMajor, buildType, stdlib, cppStd, rtti, exceptions, lto } = abi_info;
     return `${os}|${arch}|${compilerFamily}|${compilerFrontendMajor}|${buildType}|${stdlib}|${cppStd}|${rtti}|${exceptions}|${lto}`;
 }

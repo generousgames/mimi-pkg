@@ -3,7 +3,8 @@ import { BuildConfig, get_preset } from "./config.js";
 import { log } from "../utils/log.js";
 import { s3_putObjectFile, AWSUploadCredentials, AWSUploadOptions, AWSRegion } from "./aws.js";
 import { get_bundle_path, get_bundle_filename } from "./bundle.js";
-import { generate_abi_from_path, generate_abi_hash } from "./abi.js";
+import { generate_abi_from_path, generate_abi_fingerprint } from "./abi.js";
+import { generate_provenance_hash } from "./provenance.js";
 
 export type DeployConfig = {
     region: string;
@@ -56,14 +57,15 @@ export async function deploy_dependency(config: BuildConfig) {
         const preset = get_preset(config);
         const abiJSONPath = path.join(rootDir, "projects", preset, "abi.json");
         const abi = generate_abi_from_path(abiJSONPath);
-        
-        // Generate local bundle path.
-        const hash = generate_abi_hash(abi);
-        const localBundlePath = get_bundle_path(config, hash);
+
+        // Generate local bundle path (named by the provenance/identity hash --
+        // must match what `bundle` produced).
+        const provenance = generate_provenance_hash(config, generate_abi_fingerprint(abi));
+        const localBundlePath = get_bundle_path(config, provenance);
 
         // Generate remote bucket path.
         const buildType = config.code_gen.build_type;
-        const fileName = get_bundle_filename(config, hash);
+        const fileName = get_bundle_filename(config, provenance);
         const remoteBucketPath = get_remote_bucket_path(config.name, abi.triple, buildType, fileName, process.env.AWS_S3_UPLOAD_ROOT);
 
         log.info(`Deploying to AWS S3...`);
