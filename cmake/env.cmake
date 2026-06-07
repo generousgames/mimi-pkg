@@ -156,8 +156,15 @@ function(build_detect_abi)
     endif()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(_family "MSVC")
-    if(_macros MATCHES "#define _MSC_VER ([0-9]+)")
-      set(_frontend_major "${CMAKE_MATCH_1}") # 19xx series; coarse but useful
+    # Tag MSVC by its platform toolset (e.g. 143) — the ABI-stable bucket for
+    # prebuilt binaries: one bucket per toolset (v141/v142/v143), the same way
+    # MSBuild/NuGet native packages discriminate. CMake exposes it directly, so
+    # we don't depend on the (unreliable) _MSC_VER macro dump. Fall back to
+    # _MSC_VER if the toolset isn't available for some reason.
+    if(DEFINED MSVC_TOOLSET_VERSION AND NOT MSVC_TOOLSET_VERSION STREQUAL "")
+      set(_frontend_major "${MSVC_TOOLSET_VERSION}") # e.g. 143
+    elseif(_macros MATCHES "#define _MSC_VER ([0-9]+)")
+      set(_frontend_major "${CMAKE_MATCH_1}")
     endif()
   endif()
 
