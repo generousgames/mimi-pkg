@@ -19,7 +19,9 @@ export type DeployConfig = {
  * @returns The remote bucket path.
  */
 function get_remote_bucket_path(name: string, triple: string, buildType: string, filename: string, uploadRoot: string) {
-    return path.join(uploadRoot, `${name}`, `${triple}`, `${buildType}`, filename);
+    // Use POSIX joins: S3 keys are always '/'-delimited. path.join would emit
+    // '\' on Windows, producing one flat backslash key instead of a folder tree.
+    return path.posix.join(uploadRoot, `${name}`, `${triple}`, `${buildType}`, filename);
 }
 
 /**
