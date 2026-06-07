@@ -204,50 +204,42 @@ function(build_detect_abi)
     endif()
   endif()
 
-  set(BUILD_OS "${_os}" CACHE STRING "")
-  set(BUILD_ARCH "${_arch}" CACHE STRING "")
-  set(BUILD_COMPILER_FAMILY "${_family}" CACHE STRING "")
-  set(BUILD_COMPILER_FRONTEND_MAJOR "${_frontend_major}" CACHE STRING "")
-  set(BUILD_STDLIB "${_stdlib}" CACHE STRING "")
-  set(BUILD_DEPLOYMENT_TARGET "${_dep_target}" CACHE STRING "")
+  # FORCE these so a re-configure always refreshes them. Without FORCE the cache
+  # is sticky, so abi.json keeps stale values (old triple/arch) until the build
+  # dir is cleaned -- which is what made a plain rebuild not pick up ABI changes.
+  set(BUILD_OS "${_os}" CACHE STRING "" FORCE)
+  set(BUILD_ARCH "${_arch}" CACHE STRING "" FORCE)
+  set(BUILD_COMPILER_FAMILY "${_family}" CACHE STRING "" FORCE)
+  set(BUILD_COMPILER_FRONTEND_MAJOR "${_frontend_major}" CACHE STRING "" FORCE)
+  set(BUILD_STDLIB "${_stdlib}" CACHE STRING "" FORCE)
+  set(BUILD_DEPLOYMENT_TARGET "${_dep_target}" CACHE STRING "" FORCE)
 
-  # Compose default triple, allow env override BUILD_TRIPLE / cache override
+  # Compose default triple; allow an explicit override via the BUILD_TRIPLE env var.
   set(_triple_default "${_os}-${_arch}-${_cc_tag}")
-  set(BUILD_TRIPLE_DEFAULT "${_triple_default}" CACHE STRING "")
+  set(BUILD_TRIPLE_DEFAULT "${_triple_default}" CACHE STRING "" FORCE)
 
   if(DEFINED ENV{BUILD_TRIPLE})
     set(_triple "$ENV{BUILD_TRIPLE}")
   else()
-    # Expose cache entry so users can override from cmake -D
-    set(BUILD_TRIPLE "${_triple_default}" CACHE STRING "BUILD packaging triple")
-    set(_triple "${BUILD_TRIPLE}")
+    set(_triple "${_triple_default}")
   endif()
-  set(BUILD_TRIPLE "${_triple}" CACHE STRING "")
+  set(BUILD_TRIPLE "${_triple}" CACHE STRING "BUILD packaging triple" FORCE)
 endfunction()
 
 # --- Public: write abi.json and compute hash ------------------------------
 
 function(build_write_abi_json OUT_DIR)
-  if(NOT DEFINED BUILD_OS)
-    build_detect_abi()
-    # Pull into local scope if not set already by caller:
-    set(_from_detect TRUE)
-    set(_OS "${BUILD_OS}")
-    set(_ARCH "${BUILD_ARCH}")
-    set(_FAM "${BUILD_COMPILER_FAMILY}")
-    set(_MAJ "${BUILD_COMPILER_FRONTEND_MAJOR}")
-    set(_STDLIB "${BUILD_STDLIB}")
-    set(_DEP "${BUILD_DEPLOYMENT_TARGET}")
-    set(_TRIPLE "${BUILD_TRIPLE}")
-  else()
-    set(_OS "${BUILD_OS}")
-    set(_ARCH "${BUILD_ARCH}")
-    set(_FAM "${BUILD_COMPILER_FAMILY}")
-    set(_MAJ "${BUILD_COMPILER_FRONTEND_MAJOR}")
-    set(_STDLIB "${BUILD_STDLIB}")
-    set(_DEP "${BUILD_DEPLOYMENT_TARGET}")
-    set(_TRIPLE "${BUILD_TRIPLE}")
-  endif()
+  # Always re-detect so abi.json reflects the current configure. build_detect_abi
+  # FORCE-updates its cache vars, so this is cheap and picks up ABI changes (new
+  # triple/arch/compiler) on a plain re-configure -- no need to clean the build dir.
+  build_detect_abi()
+  set(_OS "${BUILD_OS}")
+  set(_ARCH "${BUILD_ARCH}")
+  set(_FAM "${BUILD_COMPILER_FAMILY}")
+  set(_MAJ "${BUILD_COMPILER_FRONTEND_MAJOR}")
+  set(_STDLIB "${BUILD_STDLIB}")
+  set(_DEP "${BUILD_DEPLOYMENT_TARGET}")
+  set(_TRIPLE "${BUILD_TRIPLE}")
 
   set(_dir "${OUT_DIR}")
   file(MAKE_DIRECTORY "${_dir}")

@@ -1,9 +1,10 @@
 import { BuildConfig } from "./config";
 
-export function generate_manifest(config: BuildConfig, hash: string) {
+export function generate_manifest(config: BuildConfig, hash: string, triple: string) {
     return {
         name: config.name,
         version: config.version,
+        triple: triple,
         hash: hash,
         platform: config.platform,
         compiler: config.compiler,

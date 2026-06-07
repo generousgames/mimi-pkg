@@ -133,7 +133,7 @@ export async function bundle_dependency(config: BuildConfig) {
         const abiJSONPath = path.join(rootDir, "projects", preset, "abi.json");
         const abi = generate_abi_from_path(abiJSONPath);
         const hash = generate_abi_hash(abi);
-        const manifest = generate_manifest(config, hash);
+        const manifest = generate_manifest(config, hash, abi.triple);
         fs.writeFileSync(path.join(contentsDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
         // Create bundle.
