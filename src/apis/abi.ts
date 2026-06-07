@@ -28,6 +28,13 @@ export type AbiInfo = {
 
     // The C++ standard (e.g. c++20, c++17, c++11, etc.).
     cppStd: number;
+
+    // Whether RTTI is enabled.
+    rtti: boolean;
+    // Whether exceptions are enabled.
+    exceptions: boolean;
+    // Whether link-time optimization is enabled.
+    lto: boolean;
 };
 
 /**
@@ -46,6 +53,9 @@ export function generate_abi_from_path(path: string): AbiInfo {
         buildType: abiJSON.buildType,
         stdlib: abiJSON.stdlib,
         cppStd: abiJSON.cppStd,
+        rtti: abiJSON.rtti,
+        exceptions: abiJSON.exceptions,
+        lto: abiJSON.lto,
     } as AbiInfo;
 }
 
@@ -55,8 +65,8 @@ export function generate_abi_from_path(path: string): AbiInfo {
  * @returns The ABI fingerprint.
  */
 function generate_abi_fingerprint(abi_info: AbiInfo) {
-    const { os, arch, compilerFamily, compilerFrontendMajor, buildType, stdlib, cppStd } = abi_info;
-    return `${os}|${arch}|${compilerFamily}|${compilerFrontendMajor}|${buildType}|${stdlib}|${cppStd}`;
+    const { os, arch, compilerFamily, compilerFrontendMajor, buildType, stdlib, cppStd, rtti, exceptions, lto } = abi_info;
+    return `${os}|${arch}|${compilerFamily}|${compilerFrontendMajor}|${buildType}|${stdlib}|${cppStd}|${rtti}|${exceptions}|${lto}`;
 }
 
 /**

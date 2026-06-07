@@ -17,7 +17,8 @@ export async function build_dependency(config: BuildConfig) {
             BUILD_OS: platform.os,
             BUILD_ARCH: platform.arch,
             BUILD_TYPE: code_gen.build_type,
-            // TODO: Other compiler settings (eg. RTTI, exceptions, etc.).
+            BUILD_RTTI: String(language.rtti),
+            BUILD_EXCEPTIONS: String(language.exceptions),
             // TODO: Other dependency specific flags (eg. GLFW_BUILD_EXAMPLES, GLFW_BUILD_DOCS, etc.).
         } as Record<string, string>;
 
