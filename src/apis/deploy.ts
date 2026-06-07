@@ -58,14 +58,14 @@ export async function deploy_dependency(config: BuildConfig) {
         const abiJSONPath = path.join(rootDir, "projects", preset, "abi.json");
         const abi = generate_abi_from_path(abiJSONPath);
 
-        // Generate local bundle path (named by the provenance/identity hash --
-        // must match what `bundle` produced).
-        const provenance = generate_provenance_hash(config, generate_abi_fingerprint(abi));
-        const localBundlePath = get_bundle_path(config, provenance);
+        // Generate local bundle path (named by the buildHash -- must match what
+        // `bundle` produced).
+        const buildHash = generate_provenance_hash(config, generate_abi_fingerprint(abi));
+        const localBundlePath = get_bundle_path(config, buildHash);
 
         // Generate remote bucket path.
         const buildType = config.code_gen.build_type;
-        const fileName = get_bundle_filename(config, provenance);
+        const fileName = get_bundle_filename(config, buildHash);
         const remoteBucketPath = get_remote_bucket_path(config.name, abi.triple, buildType, fileName, process.env.AWS_S3_UPLOAD_ROOT);
 
         log.info(`Deploying to AWS S3...`);

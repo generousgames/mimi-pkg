@@ -134,14 +134,14 @@ export async function bundle_dependency(config: BuildConfig) {
         const abiJSONPath = path.join(rootDir, "projects", preset, "abi.json");
         const abi = generate_abi_from_path(abiJSONPath);
         const abiHash = generate_abi_hash(abi);
-        // Identity = provenance over the build inputs; this names the bundle so a
+        // buildHash = provenance over the build inputs; this names the bundle so a
         // change in source/options/version produces a distinct artifact.
-        const provenance = generate_provenance_hash(config, generate_abi_fingerprint(abi));
-        const manifest = generate_manifest(config, abiHash, abi.triple, provenance);
+        const buildHash = generate_provenance_hash(config, generate_abi_fingerprint(abi));
+        const manifest = generate_manifest(config, abiHash, abi.triple, buildHash);
         fs.writeFileSync(path.join(contentsDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
-        // Create bundle (named by provenance hash).
-        const bundlePath = get_bundle_path(config, provenance);
+        // Create bundle (named by buildHash).
+        const bundlePath = get_bundle_path(config, buildHash);
         {
             log.info(`Bundling ${config.name}(${config.version})...`);
             log.info(`> Destination: ${bundlePath}`);
